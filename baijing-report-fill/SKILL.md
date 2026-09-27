@@ -9,6 +9,7 @@ description: 百景大赛（东莞工业AI应用创新挑战）参赛报告书�
 ## 何时使用
 - 用户给出比赛报告书 docx 模板（提纲式占位），要求"写报告书，不要改变格式"。
 - 任何「往既有 docx 模板填章节正文 + 插界面截图」的任务。
+- 百景大赛场景若用户未上传模板，直接用本 skill 自带的 `assets/百景大赛报告书模板.docx`（官方五章提纲原版）。
 
 ## 铁律（先读这里，血泪换来的）
 
@@ -97,5 +98,5 @@ call("save_file", {"file_id": FID})
 ## 相关路径（本机实测有效）
 - edsdk.py：`D:/Program Files/wb/WorkBuddy/resources/app.asar.unpacked/resources/plugins/workbuddy-builtin/skills/tencent-local-office-edit/edsdk.py`
 - 调用方式：`python3 edsdk.py call <method> --json '<payload>'`（cwd 必须是该 skill 目录）
-- 模板示例：`D:/Users/Zion/Downloads/13d4ac84-...docx`（封面 5×2 信息表 + 目录 + 五章提纲）
+- **官方报告书模板（skill 自带）**：`<本skill目录>/assets/百景大赛报告书模板.docx`（封面 5×2 信息表 + 目录 + 五章提纲：项目背景/项目方案与技术路线/作品效果/主要亮点/前景与推广建议）。用户没上传模板时直接用它，无需再向用户索取。
 - 工作副本建议放：`agent_app/docs/报告书_工作副本.docx`

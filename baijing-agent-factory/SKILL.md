@@ -61,8 +61,27 @@ agent_app/
 - 界面去 AI 味：企业蓝 `#2456C8`、6px 圆角、**无 emoji**、真实业务文案、图例/标签/表格斑马纹
 
 ### LLM 接入（可选但有则加分）
-- 优先问用户要 OpenAI 格式 API；没有则部署 `workbuddy2api-hub` 网关反代（端口 8788，`WB_PROXY_DEFAULT_REALM=cn`，用户自行 OAuth 绑定）。
-- LLM 调用带 3 次重试 + timeout 90s（30s 会偶发超时）；JSON 输出解析失败要重试，不能静默吞。
+- 优先问用户要 OpenAI 格式 API；没有则部署 `workbuddy2api-hub` 网关反代（详见下方「WorkBuddy2api 网关（仅本机有效）」小节）。
+- LLM 调用带 3 次重试 + timeout 280s（**推理模型如 glm-5.3-flash 对复杂规划指令思考链可达数分钟**，30/90s 会偶发超时；务必用流式读取，见下）；JSON 输出解析失败要带错误反馈重试，不能静默吞。
+- **流式是硬要求**：非流式下推理模型长思考期间无字节到达 → read timeout 误杀 → 重试 → 挂死。`build_llm` 用 `stream=True` + SSE 增量拼接（忽略 reasoning_content delta），思考多久都不怕。
+
+### WorkBuddy2api 网关（仅本机有效）
+把本机 WorkBuddy 桌面端已登录的账号封装成 **OpenAI 兼容接口** `http://127.0.0.1:8788/v1`，供参赛智能体免 key 调用（glm-5.3-flash 等）。
+
+- **代码位置（本机）**：`D:/WorkBuddy/希望早睡百景/workbuddy2api-hub/`（自带 README 与启动脚本）
+- **启动**（后台，必须清空代理变量）：
+  ```bash
+  cd D:/WorkBuddy/希望早睡百景/workbuddy2api-hub
+  HTTP_PROXY= HTTPS_PROXY= http_proxy= https_proxy= <venv python> wb_proxy.py --port 8788
+  ```
+- **健康检查**：`curl --noproxy "*" -s -X POST http://127.0.0.1:8788/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"glm-5.3-flash","messages":[{"role":"user","content":"hi"}],"max_tokens":5}'`
+- **智能体侧配置**（`webapp/llm_config.json`）：`{"base_url": "http://127.0.0.1:8788/v1", "model": "glm-5.3-flash", "api_key": "<网关看板生成的key或占位>"}`
+- **首次使用**：浏览器开 `http://127.0.0.1:8788/` 看板 → 点 OAuth 链接完成 WorkBuddy/CodeBuddy 账号授权（`WB_PROXY_DEFAULT_REALM=cn` 走国内版）
+- **「仅本机有效」的含义（务必向用户说明）**：
+  1. 网关代理的是**用户自己的 WorkBuddy 桌面端账号授权**（OAuth token 落盘本机 `accounts/`），换机器/给别人用都要重新授权，额度也是用户自己的额度；
+  2. 设备指纹 `derive_id` 按账号 UID 派生，多机器共用同一账号有风控风险；
+  3. **只监听 127.0.0.1，不要跑 `start-wb-proxy-lan.bat`（局域网开放）**，也不要把 8788 端口暴露到公网/防火墙放行——等于把账号额度拱手送人；
+  4. 因此 skill 里只记录用法与位置，**网关代码不随 skill 分发**（本机项目目录已有，且属第三方开源项目 ardeyouxipianyi/workbuddy2api-hub，MIT 协议）。
 
 ### 环境速查（本机实测）
 | 项 | 值 |
@@ -122,6 +141,7 @@ agent_app/
 - [ ] present_files 交付全部文档 + 应用地址
 
 ## 常见中断恢复（电脑重启/服务挂）
-1. 网关：`cd workbuddy2api-hub && WB_PROXY_DEFAULT_REALM=cn <venv python> wb_proxy.py`（后台）
+1. 网关：`cd workbuddy2api-hub && HTTP_PROXY= HTTPS_PROXY= http_proxy= https_proxy= WB_PROXY_DEFAULT_REALM=cn <venv python> wb_proxy.py --port 8788`（后台；见上方「WorkBuddy2api 网关」小节）
 2. Web：`cd agent_app/webapp && HTTP_PROXY= HTTPS_PROXY= <venv python> -m uvicorn server:app --host 127.0.0.1 --port 8620`
 3. `curl --noproxy "*"` 健康检查两个服务后再继续。
+4. 若 venv 损坏（`Scripts/python.exe` 缺失）：用主 Python 重建 `python -m venv <envs/default>`，pip 装包走阿里云镜像；**venv `--clear` 可能因安全删除失败而中断**，此时检查骨架是否已建好、直接补装缺包即可。
